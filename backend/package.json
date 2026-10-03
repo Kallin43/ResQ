@@ -1,0 +1,32 @@
+{
+  "name": "resq-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "test:api": "node scripts/test-api.js",
+    "test:redis": "node --test scripts/operationalState.test.js",
+    "test:roads": "node scripts/testRoadReachability.js",
+    "inspect:indexes": "node scripts/inspectIndexes.js",
+    "seed": "node scripts/seed.js",
+    "seed:roads": "node scripts/seedRoads.js",
+    "seed:clear": "node scripts/clearSeed.js",
+    "seed:neo4j": "node scripts/seedGraph.js",
+    "rebuild:redis": "node scripts/rebuildRedis.js",
+    "rebuild:neo4j": "node scripts/seedGraph.js",
+    "rebuild:all": "npm run rebuild:redis && npm run rebuild:neo4j"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.9.5",
+    "neo4j-driver": "^5.28.3",
+    "redis": "^4.7.1",
+    "socket.io": "^4.8.1"
+  }
+}
