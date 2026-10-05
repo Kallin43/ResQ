@@ -54,11 +54,13 @@ registration response.
 | Area | Endpoints |
 | --- | --- |
 | Auth | `POST /api/auth/register`, `POST /api/auth/login` |
-| Incidents | `POST /api/incidents`, `GET /api/incidents`, `GET /api/incidents/:id`, `PATCH /api/incidents/:id/status` |
-| Facilities | `GET /api/facilities`, `GET /api/facilities/:id`, `POST /api/facilities`, `PATCH /api/facilities/:id` |
-| Resources | `GET /api/resources`, `POST /api/resources`, `PATCH /api/resources/:id` |
+| Incidents | `POST /api/incidents`, `GET /api/incidents`, `GET /api/incidents/search?q=`, `GET /api/incidents/:id`, `PATCH /api/incidents/:id`, `PATCH /api/incidents/:id/status`, `DELETE /api/incidents/:id` |
+| Facilities | `GET /api/facilities`, `GET /api/facilities/nearby`, `GET /api/facilities/search?q=`, `GET /api/facilities/:id`, `POST /api/facilities`, `PATCH /api/facilities/:id`, `DELETE /api/facilities/:id` |
+| Resources | `GET /api/resources`, `POST /api/resources`, `PATCH /api/resources/:id`, `DELETE /api/resources/:id` |
 | Allocations | `GET /api/allocations`, `GET /api/allocations/:id`, `POST /api/allocations`, `PATCH /api/allocations/:id` |
-| Alerts | `GET /api/alerts`, `POST /api/alerts` |
+| Alerts | `GET /api/alerts`, `POST /api/alerts`, `PATCH /api/alerts/:id/expire`, `DELETE /api/alerts/:id` |
+| Analytics (aggregation) | `GET /api/analytics/dashboard`, `/incidents/by-type`, `/incidents/by-severity`, `/incidents/by-status`, `/incidents/by-zone`, `/incidents/trend`, `/incidents/size-buckets`, `/zones/hotspots`, `/facilities/nearest`, `/facilities/utilization`, `/resources/availability`, `/resources/low-stock`, `/allocations/by-status`, `/allocations/response-times`, `/responders/skills` |
+| Database introspection | `GET /api/analytics/indexes`, `GET /api/analytics/explain`, `GET /api/analytics/explain/:name`, `GET /api/analytics/redis` |
 | Dispatch | `GET /api/dispatch/candidates/:incidentId` |
 | Roads | `GET /api/roads`, `GET /api/roads/:roadId`, `POST /api/roads`, `PATCH /api/roads/:roadId`, `PATCH /api/roads/:roadId/status`, `DELETE /api/roads/:roadId` |
 
@@ -164,6 +166,34 @@ FLOODED shortcuts for route-filtering checks.
 To run the live API integration checks, start the backend in one terminal and
 run `cd backend && npm run test:api` in another. The check uses temporary Atlas
 records and removes them afterward.
+
+## Review 2: CRUD, indexing and aggregation
+
+* **CRUD** – every core collection now supports create, read, update and delete
+  through the API. Deletes are guarded: incidents/facilities with active
+  allocations are refused (409), reserved stock must be released before a
+  resource line is deleted, and deleting a facility cascades to its inventory
+  lines and Redis counters.
+* **Indexes** – 31 secondary indexes (38 including `_id`) across 7 collections: compound, unique, 2dsphere,
+  weighted text and partial indexes. `GET /api/analytics/indexes` lists them and
+  `GET /api/analytics/explain/:name` returns the `explain('executionStats')`
+  plan for six real application queries.
+* **Aggregation** – 15 pipelines using `$match`, `$group`, `$facet`, `$lookup`
+  (with sub-pipelines), `$geoNear`, `$unwind`, `$bucket`, `$dateToString`,
+  `$arrayToObject`, `$filter` and `$switch`.
+* **UI** – `/analytics` (charts and tables driven by the pipelines) and
+  `/database` (resource/incident CRUD, index catalogue, query plans, Redis
+  state) for AUTHORITY/ADMIN accounts.
+
+```sh
+cd backend
+npm run seed          # base synthetic dataset (250 documents)
+npm run seed:roads    # 26 road segments
+npm run seed:bulk     # +1,500 incidents and +300 resource lines for index/aggregation demos
+npm run demo:queries  # prints CRUD, index, explain and aggregation results
+npm run test:crud     # 41 API checks for CRUD, search, geo, aggregation and index endpoints (API must be running)
+npm run seed:bulk:clear
+```
 
 ## Run the frontend
 

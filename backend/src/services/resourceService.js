@@ -68,3 +68,22 @@ export async function updateResource(id, changes, user) {
   } catch (error) { console.error('Failed to publish resource update event:', error.message); }
   return resource;
 }
+
+// DELETE. Reserved stock is committed to allocations, so it must be released first.
+export async function deleteResource(id, user) {
+  const resource = await Resource.findById(id);
+  if (!resource) throw new AppError(404, 'Resource not found.');
+  if (user.role === 'FACILITY_MANAGER') {
+    const facility = await Facility.findOne({ _id: resource.facility_id, 'contact.manager_id': user._id });
+    if (!facility) throw new AppError(404, 'Resource not found.');
+  }
+  if (resource.reserved > 0) throw new AppError(409, 'Resource has reserved units; release them before deleting.');
+  await Resource.deleteOne({ _id: resource._id });
+  await adjustOperationalCounter(stockCounterKey(resource.facility_id, resource.category), -resource.quantity, resource.quantity)
+    .catch((error) => console.error('Failed to update Redis resource counter:', error.message));
+  try {
+    const facility = await Facility.findById(resource.facility_id).select('zone_code').lean();
+    await publishRealtimeEvent('resource:updated', facility?.zone_code, { _id: resource._id, deleted: true, facility_id: resource.facility_id });
+  } catch (error) { console.error('Failed to publish resource deletion event:', error.message); }
+  return { _id: resource._id, deleted: true };
+}

@@ -61,3 +61,19 @@ export const update = asyncHandler(async (request, response) => {
   rejectUnknownFields(request.body, ['name', 'kind', 'zone_code', 'location', 'capacity_total', 'capacity_free', 'operational', 'services', 'address', 'contact']);
   response.json({ data: await service.updateFacility(requireId(request.params.id), facilityFields(request.body, { partial: true, allowManagerId: true }), request.user) });
 });
+
+export const remove = asyncHandler(async (request, response) => {
+  response.json({ data: await service.deleteFacility(requireId(request.params.id)) });
+});
+
+export const nearby = asyncHandler(async (request, response) => {
+  const longitude = requireNumber(Number(request.query.longitude), 'longitude', { min: -180, max: 180 });
+  const latitude = requireNumber(Number(request.query.latitude), 'latitude', { min: -90, max: 90 });
+  const maxDistanceM = requireNumber(Number(request.query.max_distance_m ?? 5000), 'max_distance_m', { min: 1, max: 100000 });
+  const kind = request.query.kind === undefined ? undefined : requireEnum(request.query.kind, 'kind', KINDS);
+  response.json({ data: await service.findNearbyFacilities({ longitude, latitude, maxDistanceM, kind }) });
+});
+
+export const search = asyncHandler(async (request, response) => {
+  response.json({ data: await service.searchFacilities(requireString(request.query.q, 'q', { max: 200 })) });
+});

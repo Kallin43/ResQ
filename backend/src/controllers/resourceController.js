@@ -32,3 +32,7 @@ export const update = asyncHandler(async (request, response) => {
   rejectUnknownFields(request.body, ['category', 'item', 'quantity', 'unit', 'reserved']);
   response.json({ data: await service.updateResource(requireId(request.params.id), resourceFields(request.body, { partial: true }), request.user) });
 });
+
+export const remove = asyncHandler(async (request, response) => {
+  response.json({ data: await service.deleteResource(requireId(request.params.id), request.user) });
+});

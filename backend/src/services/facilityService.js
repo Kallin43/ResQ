@@ -1,4 +1,7 @@
+import Allocation from '../models/Allocation.js';
 import Facility from '../models/Facility.js';
+import Resource from '../models/Resource.js';
+import { getRedisClient } from '../config/redis.js';
 import AppError from '../utils/AppError.js';
 import { adjustOperationalCounter, bedCounterKey } from './operationalStateService.js';
 import { publishRealtimeEvent } from './realtimeEventService.js';
@@ -64,4 +67,39 @@ export async function updateFacility(id, changes, user) {
   await publishRealtimeEvent('facility:updated', facility.zone_code, facility)
     .catch((error) => console.error('Failed to publish facility update event:', error.message));
   return facility;
+}
+
+// DELETE. A facility with active allocations cannot be removed. Its inventory lines are
+// deleted with it (cascade) and its Redis bed/stock counters are cleared.
+export async function deleteFacility(id) {
+  const facility = await Facility.findById(id);
+  if (!facility) throw new AppError(404, 'Facility not found.');
+  const active = await Allocation.exists({ facility_id: facility._id, state: { $in: ['PROPOSED', 'ACCEPTED', 'EN_ROUTE', 'ON_SCENE'] } });
+  if (active) throw new AppError(409, 'This facility has active allocations and cannot be deleted.');
+  const { deletedCount: resourcesDeleted } = await Resource.deleteMany({ facility_id: facility._id });
+  await Facility.deleteOne({ _id: facility._id });
+  const client = getRedisClient();
+  if (client) {
+    const keys = await client.keys(`facility:${facility._id}:*`);
+    if (keys.length) await client.del(keys);
+  }
+  await publishRealtimeEvent('facility:updated', facility.zone_code, { _id: facility._id, deleted: true })
+    .catch((error) => console.error('Failed to publish facility deletion event:', error.message));
+  return { _id: facility._id, deleted: true, resources_deleted: resourcesDeleted };
+}
+
+// Geospatial READ using the location 2dsphere index ($near sorts nearest-first).
+export async function findNearbyFacilities({ longitude, latitude, maxDistanceM = 5000, kind, limit = 10 }) {
+  const query = {
+    operational: true,
+    location: { $near: { $geometry: { type: 'Point', coordinates: [longitude, latitude] }, $maxDistance: maxDistanceM } },
+  };
+  if (kind) query.kind = kind;
+  return Facility.find(query).limit(limit).lean();
+}
+
+// Text search over facility name/services using facility_text_search.
+export async function searchFacilities(text, { limit = 20 } = {}) {
+  return Facility.find({ $text: { $search: text } }, { score: { $meta: 'textScore' } })
+    .sort({ score: { $meta: 'textScore' } }).limit(limit).lean();
 }

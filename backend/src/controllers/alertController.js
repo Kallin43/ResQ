@@ -50,3 +50,7 @@ export const create = asyncHandler(async (request, response) => {
 export const expire = asyncHandler(async (request, response) => {
   response.json({ data: await service.expireAlert(requireId(request.params.id)) });
 });
+
+export const remove = asyncHandler(async (request, response) => {
+  response.json({ data: await service.deleteAlert(requireId(request.params.id)) });
+});

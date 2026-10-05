@@ -7,5 +7,6 @@ router.use(authenticate);
 router.get('/', authorize('CITIZEN', 'VOLUNTEER', 'RESCUE_LEAD', 'FACILITY_MANAGER', 'AUTHORITY', 'ADMIN'), controller.list);
 router.post('/', authorize('AUTHORITY', 'ADMIN'), controller.create);
 router.patch('/:id/expire', authorize('AUTHORITY', 'ADMIN'), controller.expire);
+router.delete('/:id', authorize('AUTHORITY', 'ADMIN'), controller.remove);
 
 export default router;

@@ -1,7 +1,9 @@
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import AuthorityDashboard from './pages/AuthorityDashboard.jsx';
+import DatabasePage from './pages/DatabasePage.jsx';
 import CitizenDashboard from './pages/CitizenDashboard.jsx';
 import FacilitiesPage from './pages/FacilitiesPage.jsx';
 import Login from './pages/Login.jsx';
@@ -43,17 +45,24 @@ function HomePage() {
             people, facilities, and supplies during a disaster.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
-            <button className="rounded-lg bg-teal-800 px-5 py-3 font-semibold text-white shadow-sm">
+            <Link to="/report" className="rounded-lg bg-teal-800 px-5 py-3 font-semibold text-white shadow-sm">
               Report an emergency
-            </button>
-            <button className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700">
+            </Link>
+            <Link to="/facilities" className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700">
               View nearby facilities
-            </button>
+            </Link>
             {auth.isAuthenticated && (auth.user?.role === 'AUTHORITY' || auth.user?.role === 'ADMIN') && <Link to="/authority" className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700">Authority dashboard</Link>}
           </div>
-          <p className="mt-5 text-sm text-slate-500">
-            Starter homepage — application workflows will be added in later phases.
-          </p>
+          <div className="mt-14 grid gap-4 sm:grid-cols-3">
+            {[['MongoDB Atlas', 'System of record: incidents, facilities, resources, allocations, alerts, roads.'],
+              ['Redis', 'Live incident queue, capacity counters, responder presence, Pub/Sub events.'],
+              ['Neo4j AuraDB', 'Zone road graph for reachability-aware dispatch of responders and stock.']].map(([title, text]) => (
+              <div key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="font-semibold text-teal-800">{title}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
     </main>
@@ -68,6 +77,8 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/citizen" element={<ProtectedRoute roles={['CITIZEN']}><CitizenDashboard /></ProtectedRoute>} />
       <Route path="/authority" element={<ProtectedRoute roles={['AUTHORITY', 'ADMIN']}><AuthorityDashboard /></ProtectedRoute>} />
+      <Route path="/analytics" element={<ProtectedRoute roles={['AUTHORITY', 'ADMIN']}><AnalyticsPage /></ProtectedRoute>} />
+      <Route path="/database" element={<ProtectedRoute roles={['AUTHORITY', 'ADMIN']}><DatabasePage /></ProtectedRoute>} />
       <Route path="/report" element={<ProtectedRoute roles={['CITIZEN']}><ReportIncident /></ProtectedRoute>} />
       <Route path="/facilities" element={<ProtectedRoute><FacilitiesPage /></ProtectedRoute>} />
       <Route path="*" element={<HomePage />} />

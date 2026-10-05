@@ -38,5 +38,8 @@ const allocationSchema = new mongoose.Schema({
 
 allocationSchema.index({ incident_id: 1, state: 1 });
 allocationSchema.index({ responder_id: 1, state: 1 });
+allocationSchema.index({ facility_id: 1, state: 1 });
+// Sparse-style partial index: only allocations flagged for review are indexed.
+allocationSchema.index({ review_required: 1, updated_at: -1 }, { name: 'allocations_needing_review', partialFilterExpression: { review_required: true } });
 
 export default mongoose.models.Allocation || mongoose.model('Allocation', allocationSchema);
