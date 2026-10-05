@@ -114,3 +114,11 @@ export async function expireAlert(id) {
   await cacheActiveAlert(alert).catch((error) => console.error('Failed to remove expired alert from Redis:', error.message));
   return alert;
 }
+
+export async function deleteAlert(id) {
+  const alert = await Alert.findByIdAndDelete(id);
+  if (!alert) throw new AppError(404, 'Alert not found.');
+  const client = getRedisClient();
+  if (client) await client.multi().zRem(ACTIVE_ALERTS_KEY, String(alert._id)).del(`alert:${alert._id}:summary`).exec();
+  return { _id: alert._id, deleted: true };
+}

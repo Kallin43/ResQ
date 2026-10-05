@@ -5,8 +5,11 @@ import { authenticate, authorize } from '../middleware/authenticate.js';
 const router = Router();
 router.use(authenticate);
 router.post('/', authorize('CITIZEN'), controller.create);
+router.get('/search', authorize('RESCUE_LEAD', 'AUTHORITY', 'ADMIN'), controller.search);
 router.get('/', authorize('CITIZEN', 'VOLUNTEER', 'RESCUE_LEAD', 'AUTHORITY', 'ADMIN'), controller.list);
 router.get('/:id', authorize('CITIZEN', 'VOLUNTEER', 'RESCUE_LEAD', 'AUTHORITY', 'ADMIN'), controller.get);
 router.patch('/:id/status', authorize('AUTHORITY', 'ADMIN'), controller.updateStatus);
+router.patch('/:id', authorize('CITIZEN', 'AUTHORITY', 'ADMIN'), controller.update);
+router.delete('/:id', authorize('CITIZEN', 'AUTHORITY', 'ADMIN'), controller.remove);
 
 export default router;

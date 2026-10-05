@@ -36,5 +36,15 @@ incidentSchema.index({ severity: 1, reported_at: -1 });
 incidentSchema.index({ type: 1, reported_at: -1 });
 incidentSchema.index({ zone_code: 1, reported_at: -1 });
 incidentSchema.index({ reporter_id: 1, reported_at: -1 });
+// Full-text search over free-text report fields; description matches are weighted higher than needs.
+incidentSchema.index(
+  { description: 'text', needs: 'text' },
+  { name: 'incident_text_search', weights: { description: 5, needs: 2 }, default_language: 'english' },
+);
+// Partial index: only open incidents are indexed, keeping the live operations queue index small.
+incidentSchema.index(
+  { zone_code: 1, severity: 1, reported_at: -1 },
+  { name: 'open_incidents_by_zone', partialFilterExpression: { closed_at: null } },
+);
 
 export default mongoose.models.Incident || mongoose.model('Incident', incidentSchema);

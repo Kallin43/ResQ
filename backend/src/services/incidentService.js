@@ -76,3 +76,54 @@ export async function updateIncidentStatus(id, status) {
 }
 
 export { INCIDENT_STATUSES };
+
+const EDITABLE_INCIDENT_FIELDS = ['type', 'description', 'people_affected', 'needs', 'media', 'zone_code', 'location'];
+
+// UPDATE (full field edit). Citizens may edit their own report only while it is still REPORTED;
+// authorities/admins may correct any open report. Severity is re-derived from the new values.
+export async function updateIncident(id, changes, user) {
+  const incident = await Incident.findById(id);
+  if (!incident) throw new AppError(404, 'Incident not found.');
+  if (user.role === 'CITIZEN') {
+    if (!incident.reporter_id.equals(user._id)) throw new AppError(404, 'Incident not found.');
+    if (incident.status !== 'REPORTED') throw new AppError(409, 'Only reports that have not been verified can be edited.');
+  }
+  for (const key of EDITABLE_INCIDENT_FIELDS) {
+    if (changes[key] !== undefined) incident.set(key, changes[key]);
+  }
+  incident.severity = classifySeverity(incident.toObject());
+  await incident.save();
+  await cacheIncident(incident).catch((error) => console.error('Failed to refresh Redis incident state:', error.message));
+  await publishRealtimeEvent('incident:updated', incident.zone_code, incident, { userIds: [incident.reporter_id] })
+    .catch((error) => console.error('Failed to publish incident update event:', error.message));
+  return incident;
+}
+
+// DELETE. Incidents with active allocations cannot be removed; closed allocations are kept
+// as history. The Redis live-queue entry and cached summary are removed with the record.
+export async function deleteIncident(id, user) {
+  const incident = await Incident.findById(id);
+  if (!incident) throw new AppError(404, 'Incident not found.');
+  if (user.role === 'CITIZEN' && (!incident.reporter_id.equals(user._id) || incident.status !== 'REPORTED')) {
+    throw new AppError(403, 'Citizens can only withdraw their own unverified reports.');
+  }
+  const active = await Allocation.exists({ incident_id: incident._id, state: { $in: ['PROPOSED', 'ACCEPTED', 'EN_ROUTE', 'ON_SCENE'] } });
+  if (active) throw new AppError(409, 'Cancel the active allocation before deleting this incident.');
+  await Incident.deleteOne({ _id: incident._id });
+  const client = getRedisClient();
+  if (client) {
+    await client.multi().zRem('incident:live', String(incident._id)).del(`incident:${incident._id}:summary`).exec()
+      .catch((error) => console.error('Failed to remove Redis incident state:', error.message));
+  }
+  await publishRealtimeEvent('incident:updated', incident.zone_code, { _id: incident._id, deleted: true, zone_code: incident.zone_code })
+    .catch((error) => console.error('Failed to publish incident deletion event:', error.message));
+  return { _id: incident._id, deleted: true };
+}
+
+// READ with the incident_text_search index ($text + textScore sort).
+export async function searchIncidents(text, { limit = 20 } = {}) {
+  return Incident.find({ $text: { $search: text } }, { score: { $meta: 'textScore' } })
+    .sort({ score: { $meta: 'textScore' } })
+    .limit(limit)
+    .lean();
+}

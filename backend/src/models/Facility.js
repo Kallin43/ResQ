@@ -23,5 +23,7 @@ const facilitySchema = new mongoose.Schema({
 
 facilitySchema.index({ location: '2dsphere' });
 facilitySchema.index({ kind: 1, operational: 1 });
+facilitySchema.index({ zone_code: 1, kind: 1 });
+facilitySchema.index({ name: 'text', services: 'text' }, { name: 'facility_text_search', weights: { name: 3, services: 1 } });
 
 export default mongoose.models.Facility || mongoose.model('Facility', facilitySchema);

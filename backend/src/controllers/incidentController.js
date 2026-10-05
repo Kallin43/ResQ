@@ -41,3 +41,26 @@ export const updateStatus = asyncHandler(async (request, response) => {
   const status = requireEnum(request.body.status, 'status', INCIDENT_STATUSES);
   response.json({ data: await service.updateIncidentStatus(id, status) });
 });
+
+export const update = asyncHandler(async (request, response) => {
+  requireObject(request.body);
+  rejectUnknownFields(request.body, ['type', 'description', 'people_affected', 'location', 'zone_code', 'needs', 'media']);
+  const changes = {};
+  if (request.body.type !== undefined) changes.type = requireEnum(request.body.type, 'type', INCIDENT_TYPES);
+  if (request.body.people_affected !== undefined) changes.people_affected = requireNumber(request.body.people_affected, 'people_affected', { max: 10000, integer: true });
+  if (request.body.needs !== undefined) changes.needs = requireArray(request.body.needs, 'needs');
+  if (request.body.media !== undefined) changes.media = requireArray(request.body.media, 'media');
+  if (request.body.description !== undefined) changes.description = requireString(request.body.description, 'description', { min: 0, max: 1000 });
+  if (request.body.location !== undefined) changes.location = requirePoint(request.body.location);
+  if (request.body.zone_code !== undefined) changes.zone_code = requireString(request.body.zone_code, 'zone_code', { max: 80 });
+  response.json({ data: await service.updateIncident(requireId(request.params.id), changes, request.user) });
+});
+
+export const remove = asyncHandler(async (request, response) => {
+  response.json({ data: await service.deleteIncident(requireId(request.params.id), request.user) });
+});
+
+export const search = asyncHandler(async (request, response) => {
+  const q = requireString(request.query.q, 'q', { max: 200 });
+  response.json({ data: await service.searchIncidents(q) });
+});

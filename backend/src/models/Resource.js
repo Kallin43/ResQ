@@ -11,5 +11,7 @@ const resourceSchema = new mongoose.Schema({
 }, { ...schemaTimestamps, collection: 'resources' });
 
 resourceSchema.index({ facility_id: 1, category: 1 });
+resourceSchema.index({ item: 1 });
+resourceSchema.index({ category: 1, quantity: -1 });
 
 export default mongoose.models.Resource || mongoose.model('Resource', resourceSchema);

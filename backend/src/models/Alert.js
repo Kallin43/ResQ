@@ -14,5 +14,6 @@ const alertSchema = new mongoose.Schema({
 alertSchema.index({ centre: '2dsphere' });
 // Expired alerts stay in MongoDB for durable incident history; application queries filter them.
 alertSchema.index({ expires_at: 1 });
+alertSchema.index({ zone_code: 1, severity: 1, expires_at: -1 });
 
 export default mongoose.models.Alert || mongoose.model('Alert', alertSchema);

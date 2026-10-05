@@ -19,5 +19,6 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ phone: 1 }, { unique: true });
 userSchema.index({ location: '2dsphere' });
 userSchema.index({ role: 1 });
+userSchema.index({ role: 1, available: 1, skills: 1 }, { name: 'responder_availability' });
 
 export default mongoose.models.User || mongoose.model('User', userSchema);
